@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motor Control Dashboard</title>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.1rem;
+        }
+
+        /* Login Form */
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            margin: 50px auto;
+        }
+
+        .login-form h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Dashboard */
+        .dashboard {
+            display: none;
+        }
+
+        .dashboard.active {
+            display: block;
+        }
+
+        .user-info {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info span {
+            color: white;
+            font-weight: 500;
+        }
+
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Status Cards */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .status-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: transform 0.3s;
+        }
+
+        .status-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .status-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .status-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .status-unit {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Motor Control */
+        .motor-control {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .motor-control h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        /* Animated Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 80px;
+            height: 40px;
+            margin: 20px 0;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 32px;
+            width: 32px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #4CAF50;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(40px);
+        }
+
+        .motor-status {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+
+        .motor-status.on {
+            color: #4CAF50;
+        }
+
+        .motor-status.off {
+            color: #f44336;
+        }
+
+        /* Alerts */
+        .alerts {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .alerts h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .alert.danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert.blinking {
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        /* Real-time Data */
+        .realtime-data {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .realtime-data h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .data-row:last-child {
+            border-bottom: none;
+        }
+
+        .data-label {
+            font-weight: 500;
+            color: #555;
+        }
+
+        .data-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .container {
+                padding: 15px;
+            }
+        }
+
+        /* Loading Animation */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔧 Motor Control System</h1>
+            <p>Real-time monitoring and control dashboard</p>
+        </div>
+
+        <!-- Login Form -->
+        <div id="loginContainer" class="login-container">
+            <form id="loginForm" class="login-form">
+                <h2>Login to Dashboard</h2>
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit" class="btn">Login</button>
+            </form>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="dashboard">
+            <!-- User Info -->
+            <div class="user-info">
+                <span id="userEmail">Loading...</span>
+                <button id="logoutBtn" class="logout-btn">Logout</button>
+            </div>
+
+            <!-- Status Cards -->
+            <div class="status-grid">
+                <div class="status-card">
+                    <h3>Motor RPM</h3>
+                    <div class="status-value" id="rpmValue">0</div>
+                    <div class="status-unit">RPM</div>
+                </div>
+                <div class="status-card">
+                    <h3>Current Draw</h3>
+                    <div class="status-value" id="currentValue">0.0</div>
+                    <div class="status-unit">Amperes</div>
+                </div>
+                <div class="status-card">
+                    <h3>Power Usage</h3>
+                    <div class="status-value" id="powerValue">0.0</div>
+                    <div class="status-unit">Wh</div>
+                </div>
+                <div class="status-card">
+                    <h3>Runtime</h3>
+                    <div class="status-value" id="runtimeValue">0</div>
+                    <div class="status-unit">seconds</div>
+                </div>
+            </div>
+
+            <!-- Motor Control -->
+            <div class="motor-control">
+                <h2>Motor Control</h2>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="motorToggle">
+                    <span class="slider"></span>
+                </label>
+                <div class="motor-status" id="motorStatus">OFF</div>
+            </div>
+
+            <!-- Alerts -->
+            <div class="alerts">
+                <h2>System Alerts</h2>
+                <div id="currentAlert" class="alert danger">
+                    ⚠️ Current Overload Detected! Motor automatically stopped.
+                </div>
+                <div id="runtimeAlert" class="alert warning">
+                    ⏰ Runtime exceeded 5 minutes! Motor automatically stopped.
+                </div>
+                <div id="noAlerts" class="alert" style="background: #d4edda; color: #155724; border: 1px solid #c3e6cb;">
+                    ✅ All systems normal
+                </div>
+            </div>
+
+            <!-- Real-time Data -->
+            <div class="realtime-data">
+                <h2>Real-time Data</h2>
+                <div class="data-row">
+                    <span class="data-label">Motor Status:</span>
+                    <span class="data-value" id="motorStatusData">OFF</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Current RPM:</span>
+                    <span class="data-value" id="rpmData">0</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Current Draw:</span>
+                    <span class="data-value" id="currentData">0.0 A</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Power Consumption:</span>
+                    <span class="data-value" id="powerData">0.0 Wh</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Total Runtime:</span>
+                    <span class="data-value" id="runtimeData">0 sec</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Last Update:</span>
+                    <span class="data-value" id="lastUpdate">Never</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDm_tuejr4r0sxtS5yIOrmh7r-FpZl0uXs",
+            authDomain: "motor-control-system-29ac0.firebaseapp.com",
+            databaseURL: "https://motor-control-system-29ac0-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "motor-control-system-29ac0",
+            storageBucket: "motor-control-system-29ac0.firebasestorage.app",
+            messagingSenderId: "44038685007",
+            appId: "1:44038685007:web:87832c3e298440acf5053a"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const database = firebase.database();
+
+        // DOM Elements
+        const loginContainer = document.getElementById('loginContainer');
+        const dashboard = document.getElementById('dashboard');
+        const loginForm = document.getElementById('loginForm');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const userEmail = document.getElementById('userEmail');
+        const motorToggle = document.getElementById('motorToggle');
+        const motorStatus = document.getElementById('motorStatus');
+
+        // Data display elements
+        const rpmValue = document.getElementById('rpmValue');
+        const currentValue = document.getElementById('currentValue');
+        const powerValue = document.getElementById('powerValue');
+        const runtimeValue = document.getElementById('runtimeValue');
+        const motorStatusData = document.getElementById('motorStatusData');
+        const rpmData = document.getElementById('rpmData');
+        const currentData = document.getElementById('currentData');
+        const powerData = document.getElementById('powerData');
+        const runtimeData = document.getElementById('runtimeData');
+        const lastUpdate = document.getElementById('lastUpdate');
+
+        // Alert elements
+        const currentAlert = document.getElementById('currentAlert');
+        const runtimeAlert = document.getElementById('runtimeAlert');
+        const noAlerts = document.getElementById('noAlerts');
+
+        // Auth state observer
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                // User is signed in
+                loginContainer.style.display = 'none';
+                dashboard.classList.add('active');
+                userEmail.textContent = user.email;
+                startDataListener();
+            } else {
+                // User is signed out
+                loginContainer.style.display = 'block';
+                dashboard.classList.remove('active');
+                stopDataListener();
+            }
+        });
+
+        // Login form handler
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            auth.signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    console.log('User logged in successfully');
+                })
+                .catch((error) => {
+                    alert('Login failed: ' + error.message);
+                });
+        });
+
+        // Logout handler
+        logoutBtn.addEventListener('click', () => {
+            auth.signOut().then(() => {
+                console.log('User logged out');
+            });
+        });
+
+        // Motor toggle handler
+        motorToggle.addEventListener('change', (e) => {
+            const motorState = e.target.checked;
+            
+            // Send command to Firebase
+            database.ref('commands/motorControl').set(motorState)
+                .then(() => {
+                    console.log('Motor command sent:', motorState);
+                })
+                .catch((error) => {
+                    console.error('Error sending command:', error);
+                    // Revert toggle if command failed
+                    e.target.checked = !motorState;
+                });
+        });
+
+        // Firebase data listener
+        let dataListener = null;
+
+        function startDataListener() {
+            // Listen for real-time data updates
+            dataListener = database.ref('motorData').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    updateDashboard(data);
+                }
+            });
+        }
+
+        function stopDataListener() {
+            if (dataListener) {
+                database.ref('motorData').off('value', dataListener);
+                dataListener = null;
+            }
+        }
+
+        function updateDashboard(data) {
+            // Update status cards
+            rpmValue.textContent = Math.round(data.rpm || 0);
+            currentValue.textContent = (data.current || 0).toFixed(1);
+            powerValue.textContent = (data.powerUsage || 0).toFixed(1);
+            runtimeValue.textContent = Math.round(data.onTime || 0);
+
+            // Update detailed data
+            motorStatusData.textContent = data.motorState ? 'ON' : 'OFF';
+            rpmData.textContent = Math.round(data.rpm || 0);
+            currentData.textContent = (data.current || 0).toFixed(1) + ' A';
+            powerData.textContent = (data.powerUsage || 0).toFixed(1) + ' Wh';
+            runtimeData.textContent = Math.round(data.onTime || 0) + ' sec';
+            lastUpdate.textContent = new Date().toLocaleTimeString();
+
+            // Update motor control toggle
+            motorToggle.checked = data.motorState || false;
+            motorStatus.
